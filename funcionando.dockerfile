@@ -59,12 +59,12 @@ RUN set -eux; \
 	; \
 	\
 	wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz"; \
-	wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc"; \
-	GNUPGHOME="$(mktemp -d)"; export GNUPGHOME; \
-	gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$GPG_KEY"; \
-	gpg --batch --verify python.tar.xz.asc python.tar.xz; \
-	command -v gpgconf > /dev/null && gpgconf --kill all || :; \
-	rm -rf "$GNUPGHOME" python.tar.xz.asc; \
+	# wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc"; \
+	# GNUPGHOME="$(mktemp -d)"; export GNUPGHOME; \
+	# gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$GPG_KEY"; \
+	# gpg --batch --verify python.tar.xz.asc python.tar.xz; \
+	# command -v gpgconf > /dev/null && gpgconf --kill all || :; \
+	# rm -rf "$GNUPGHOME" python.tar.xz.asc; \
 	mkdir -p /usr/src/python; \
 	tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \
 	rm python.tar.xz; \
@@ -81,32 +81,32 @@ RUN set -eux; \
 		--with-system-expat \
 		--without-ensurepip \
 	; \
-	nproc="$(nproc)"; \
-	make -j "$nproc" \
-# set thread stack size to 1MB so we don't segfault before we hit sys.getrecursionlimit()
-# https://github.com/alpinelinux/aports/commit/2026e1259422d4e0cf92391ca2d3844356c649d0
-		EXTRA_CFLAGS="-DTHREAD_STACK_SIZE=0x100000" \
-		LDFLAGS="-Wl,--strip-all" \
-	; \
+# 	nproc="$(nproc)"; \
+# 	make -j "$nproc" \
+# # set thread stack size to 1MB so we don't segfault before we hit sys.getrecursionlimit()
+# # https://github.com/alpinelinux/aports/commit/2026e1259422d4e0cf92391ca2d3844356c649d0
+# 		EXTRA_CFLAGS="-DTHREAD_STACK_SIZE=0x100000" \
+# 		LDFLAGS="-Wl,--strip-all" \
+# 	; \
 	make install; \
 	\
 	cd /; \
-	rm -rf /usr/src/python; \
-	\
-	find /usr/local -depth \
-		\( \
-			\( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-			-o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
-		\) -exec rm -rf '{}' + \
-	; \
-	\
-	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
-		| tr ',' '\n' \
-		| sort -u \
-		| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-		| xargs -rt apk add --no-network --virtual .python-rundeps \
-	; \
-	apk del --no-network .build-deps; \
+	# rm -rf /usr/src/python; \
+	# \
+	# find /usr/local -depth \
+	# 	\( \
+	# 		\( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+	# 		-o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+	# 	\) -exec rm -rf '{}' + \
+	# ; \
+	# \
+	# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+	# 	| tr ',' '\n' \
+	# 	| sort -u \
+	# 	| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+	# 	| xargs -rt apk add --no-network --virtual .python-rundeps \
+	# ; \
+	# apk del --no-network .build-deps; \
 	\
 	python3 --version
 
@@ -145,27 +145,35 @@ RUN set -eux; \
 	\
 	pip --version
 
-RUN set -eux; \
-	\
-	apk add --no-cache graphviz graphviz-dev
-
-RUN apk add --no-cache bash
+# RUN set -eux; \
+# 	\
+RUN	apk add graphviz graphviz-dev
 
 RUN apk add --no-cache postgresql postgresql-contrib git-crypt
 
-RUN apk --no-cache add build-base gfortran lapack libstdc++ musl-dev lapack-dev openblas libc-dev mpc1-dev libpq-fe postgresql-dev libffi-dev
+RUN apk add --no-cache bash
 
-# COPY ./server/ /home/dev/server/
+# RUN apk --no-cache add build-base gfortran lapack libstdc++ musl-dev lapack-dev openblas libc-dev mpc1-dev postgresql-dev
 
-# WORKDIR /home/dev/server
+# RUN apk --no-cache add openblas-dev openblas-ilp64 openblas-static openblas openblas-doc
 
-# # RUN pip install pyproject-toml
+RUN apk --no-cache add build-base cmake openblas gfortran lapack libstdc++ musl-dev lapack-dev openblas libc-dev mpc1-dev postgresql-dev
 
-# # RUN pip install pandas
+RUN apk --no-cache add py3-wheel jack-example-clients py3-wheel-doc py3-pyqt-builder py3-sip
 
-# # RUN pip install -r requirements.txt
+# RUN python -m pip install setuptools==59.8.0 pyproject-toml scipy
 
-# # RUN pip install -r requirements.txt && pip freeze > requirements.txt && uvicorn app:app --reload --host 0.0.0.0
+# RUN apk --no-cache add build-base gfortran lapack libstdc++ musl-dev lapack-dev openblas libc-dev mpc1-dev postgresql-dev
+
+# RUN apk add build-base
+
+# RUN apk add gcc
+
+# async-asgi-testclient, blinker, cffi, docopt, pydal, pygraphviz, pytest-watch, python-multipart, pyUFbr, SQLAlchemy, watchdog
+
+COPY ./server/ /home/dev/server/
+
+WORKDIR /home/dev/server
 
 EXPOSE 8000
 
